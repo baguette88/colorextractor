@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Color Extractor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.0/color-thief.umd.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+        }
+        #dropZone {
+            border: 2px dashed #3498db;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        #dropZone:hover, #dropZone.dragover {
+            background-color: #e8f4fd;
+        }
+        #imagePreview {
+            max-width: 100%;
+            margin-top: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        #colorStrips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .colorStrip {
+            flex: 1 1 calc(50% - 10px);
+            min-width: 150px;
+            background-color: #fff;
+            border-radius: 5px;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .colorBox {
+            height: 100px;
+        }
+        .colorInfo {
+            padding: 10px;
+            text-align: center;
+        }
+        .copyButton {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .copyButton:hover {
+            background-color: #2980b9;
+        }
+        #message {
+            text-align: center;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Color Extractor</h1>
+    <div id="dropZone">
+        <p>Drop an image here or click to upload</p>
+        <input type="file" id="fileInput" accept="image/*" style="display: none;">
+    </div>
+    <img id="imagePreview" style="display: none;">
+    <div id="colorStrips"></div>
+    <p id="message"></p>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const imagePreview = document.getElementById('imagePreview');
+        const colorStrips = document.getElementById('colorStrips');
+        const message = document.getElementById('message');
+        const colorThief = new ColorThief();
+
+        dropZone.addEventListener('click', () => fileInput.click());
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+        dropZone.addEventListener('drop', handleDrop);
+        fileInput.addEventListener('change', handleFileSelect);
+
+        function handleDrop(e) {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                processImage(file);
+            } else {
+                showMessage('Please drop a valid image file.', 'error');
+            }
+        }
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                processImage(file);
+            }
+        }
+
+        function processImage(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                imagePreview.src = e.target.result;
+                imagePreview.style.display = 'block';
+                imagePreview.onload = () => {
+                    const palette = colorThief.getPalette(imagePreview, 5);
+                    displayColorStrips(palette);
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function displayColorStrips(palette) {
+            colorStrips.innerHTML = '';
+            palette.forEach(color => {
+                const hex = rgbToHex(color[0], color[1], color[2]);
+                const strip = document.createElement('div');
+                strip.className = 'colorStrip';
+                strip.innerHTML = `
+                    <div class="colorBox" style="background-color: ${hex};"></div>
+                    <div class="colorInfo">
+                        <p>${hex}</p>
+                        <button class="copyButton" onclick="copyToClipboard('${hex}')">Copy</button>
+                    </div>
+                `;
+                colorStrips.appendChild(strip);
+            });
+        }
+
+        function rgbToHex(r, g, b) {
+            return '#' + [r, g, b].map(x => {
+                const hex = x.toString(16);
+                return hex.length === 1 ? '0' + hex : hex;
+            }).join('');
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showMessage('Copied to clipboard!', 'success');
+            }, () => {
+                showMessage('Failed to copy. Please try again.', 'error');
+            });
+        }
+
+        function showMessage(text, type) {
+            message.textContent = text;
+            message.style.color = type === 'error' ? 'red' : 'green';
+            setTimeout(() => {
+                message.textContent = '';
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
